@@ -1,8 +1,18 @@
 import sqlite3
 import numpy as np # For array management
-import datetime # To generate timestamp
+from datetime import datetime, timedelta
+#import datetime # To generate timestamp
 from getpass import getpass
+import re 
+def check_email(email):
+    # Regular expression for validating email addresses
+    pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+    return re.match(pattern, email)
 
+def check_phone(phone):
+    # Regular expression for validating phone numbers
+    pattern = r"^\d{8}$"
+    return re.match(pattern, phone)
 class Session:
     def __init__(self, user_db):
         self.db = user_db
@@ -67,9 +77,10 @@ class Session:
         start_station = input("Enter the name of the starting station: ")
         end_station = input("Enter the name of the ending station: ")
         departure_datetime= input("Enter the date and time (YYYY-MM-DD HH:MM): ")
+        departure_datetime = datetime.strptime(departure_datetime, "%Y-%m-%d %H:%M")
         # departure_time = input("Enter the time( HH:MM): ")
         # query = f"SELECT * FROM route_stops WHERE stop_name = '{start_station}'"
-        
+        departure_datetime_next = [departure_datetime, departure_datetime + timedelta(days=1, hours=9)]
         # Loop through the range of train route IDs from 1 to 3
         for i in range(2, 4):
             # #Define the SQL query to create the timetable table for the given train route ID
@@ -109,43 +120,68 @@ class Session:
             # self.con.execute(update_query)
             # self.con.commit()
 
-        
+            #next_data = data + timedelta(day=1)  # add 1 minute to the datetime object to get the next data
             # Define the SQL query to select the station names, departure time, and occurrence date for the given train route ID
-            query = f"""
-SELECT occurrenceDate,Tid
-FROM TIMETABLE_{i} 
-WHERE DateTime BETWEEN (
-    SELECT DateTime
-    FROM TIMETABLE_{i} 
-    WHERE stationName = '{start_station}'  
-    AND DateTime >='{departure_datetime}'  
-) AND (
-    SELECT DateTime
-    FROM TIMETABLE_{i} 
-    WHERE stationName = '{end_station}'
+            result=[]
+  
+            
+            for departure_datetime in departure_datetime_next:
+
     
-    
-) AND stationName = '{start_station}'
-"""
+                query = f"""
+            SELECT occurrenceDate,Tid
+            FROM TIMETABLE_{i} 
+            WHERE DateTime BETWEEN (
+                SELECT DateTime
+                FROM TIMETABLE_{i} 
+                WHERE stationName = '{start_station}'  
+                AND DateTime >='{departure_datetime}' 
+            ) AND (
+                SELECT DateTime
+                FROM TIMETABLE_{i} 
+                WHERE stationName = '{end_station}'
+                AND DateTime >='{departure_datetime}' 
+            ) AND stationName = '{start_station}'"""
+                result = self.con.execute(query)
+                #result.append (self.con.execute(query))
+                for row in result:
+                    if row is not None:
+                        print(f"Train Route ID {i}:")   
+                        print(row)
+                    else:
+                        print("No results found.")
+
+                
+            
 
 
-            # Execute the SQL query to select the station names, departure time, and occurrence date
+            #Execute the SQL query to select the station names, departure time, and occurrence date
             #result = self.con.execute(query)
 
             # Print the results
             # Print the results if there are any
-            # for row in result:
-            #     if row is not None:
-            #         print(f"Train Route ID {i}:")   
-            #         print(row)
-            #     else:
-            #         print("No results found.")
+            for row in result:
+                if row is not None:
+                    print(f"Train Route ID {i}:")   
+                    print(row)
+                else:
+                    print("No results found.")
 
 
     def register_customer(self):
         customerName = input("Enter your name: ")
-        email = input("Enter your email address: ")
-        mobile = input("Enter your mobile: ")
+        #email = input("Enter your email address: ")
+        # Prompt user to enter a valid email address
+        email = ""
+        while not check_email(email):
+            email = input("Enter email address: ")
+            if not check_email(email):
+                print("Invalid email address. Please try again.")
+        mobile = ""
+        while not check_phone(mobile):
+            mobile = input("Enter your mobile: ")
+            if not check_phone(mobile):
+                print("Invalid phone number. Please try again.")
         query = "INSERT INTO Customers (customerName, email, mobile) VALUES (?, ?, ?)"
         values = (customerName, email, mobile)
         self.con.execute(query, values)
@@ -163,11 +199,29 @@ WHERE DateTime BETWEEN (
         print("Purchase data entered successfully.")
 
     def find_and_purchase_tickets(self):
+        name= input("Enter your name: ")
+        email = ""
+        while not check_email(email):
+            email = input("Enter email address: ")
+            if not check_email(email):
+                print("Invalid email address. Please try again.")
+        #query=f"SELECT ID FROM Customers WHERE ID = {email} "
+        result = self.con.execute("SELECT COUNT(*) FROM Customers WHERE email=?",(email,))
+
+        for row in result:
+
+            if not row[0]:
+                print("Email address not found in database, Register first!")
+                return 0
+            
+        # Close the database connection
+        
+
         start_station = input("Enter the name of the starting station: ")
         end_station = input("Enter the name of the ending station: ")
         departure_date = input("Enter the departure date (YYYY-MM-DD): ")
         query = f"SELECT * FROM route_stops WHERE stop_name = '{start_station}'"
-        result = self.db.execute(query)
+        result = self.con.execute(query)
         routes = []
         for row in result:
             route_id = row[0]
