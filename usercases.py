@@ -49,9 +49,14 @@ class Session:
             else:
                 print("Invalid choice.")
 
+
     def find_routes_for_station_on_weekday(self):
-        station_name = input("Enter the name of the station: ")
-        weekday = input("Enter the weekday from (MTWTF): ")
+        station_name = input("Enter the name of the station\n(Trondheim, Mosjøen, Mo i Rana, Fauske, Bodø): ")
+        valid_weekdays = ["M", "T", "W", "t", "F"]
+        weekday = input("Enter the weekday (M, T, W, t, or F): ")
+        while weekday not in valid_weekdays:
+            print("Invalid input. Please enter a valid weekday.")
+            weekday = input("Enter the weekday (M, T, W, t, or F): ")
         query = f"SELECT tr.trainRouteID, rs.stationName \
                FROM TrainRoutes tr \
                JOIN StartStation ss ON tr.startStationId = ss.startStationId \
@@ -71,84 +76,37 @@ class Session:
                WHERE rs.stationName = '{station_name}' AND runningDays LIKE  '%{weekday}%'"
         result = self.con.execute(query)
         for row in result:
-            print(row)
+            print("Train route" ,row[0])
 
     def search_train_routes_between_stations(self):
 
-        start_station = input("Enter the name of the starting station: ")
-        end_station = input("Enter the name of the ending station: ")
-        departure_datetime= input("Enter the date and time (YYYY-MM-DD HH:MM): ")
+        startStation = input("Enter the name of the starting station: ")
+        endStation = input("Enter the name of the ending station: ")
+        departureDatetime= input("Enter the date and time (YYYY-MM-DD HH:MM): ")
 
-
-
-
-
-
-        departure_datetime = datetime.strptime(departure_datetime, "%Y-%m-%d %H:%M")
-        # departure_time = input("Enter the time( HH:MM): ")
-        # query = f"SELECT * FROM route_stops WHERE stop_name = '{start_station}'"
-        departure_datetime_next = [departure_datetime, departure_datetime + timedelta(days=1, hours=9)]
+        departureDatetime = datetime.strptime(departureDatetime, "%Y-%m-%d %H:%M")
+        
+        #making a list to iterate through the date given and next day
+        departure_datetime_next = [departureDatetime, departureDatetime + timedelta(days=1, hours=10)] 
         # Loop through the range of train route IDs from 1 to 3
-        for i in range(2, 4):
-            # #Define the SQL query to create the timetable table for the given train route ID
-            # query = f"""CREATE TABLE TIMETABLE_{i} AS
-            #                 SELECT rs.stationID, tr.trainRouteID, rs.stationName, ss.departureTime AS Tid, toc.occurrenceDate
-            #                 FROM StartStation ss
-            #                 JOIN TrainOccurrence toc ON toc.startStationId=ss.startStationId
-            #                 JOIN  TrainRoutes tr ON tr.startStationId = ss.startStationId
-            #                 JOIN RailwayStations rs ON ss.stationID = rs.stationID
-            #                 WHERE tr.trainRouteID = {i}
-            #                 UNION
-            #                 SELECT rs.stationID, tr.trainRouteID, rs.stationName, ts.departureTime AS Tid, toc.occurrenceDate
-            #                 FROM TrainRoutes tr
-            #                 JOIN TrainStops ts ON tr.trainRouteID = ts.trainRouteId
-            #                 JOIN TrainOccurrence toc ON toc.trainRouteID = tr.trainRouteID 
-            #                 JOIN RailwayStations rs ON ts.stationID = rs.stationID
-            #                 WHERE tr.trainRouteID = {i}
-            #                 UNION
-            #                 SELECT rs.stationID, tr.trainRouteID, rs.stationName, es.arrivalTime AS Tid, toc.occurrenceDate
-            #                 FROM EndStation es
-            #                 JOIN TrainOccurrence toc ON toc.endStationId = es.endStationId
-            #                 JOIN TrainRoutes tr ON tr.endStationId = es.endStationId
-            #                 JOIN RailwayStations rs ON es.stationID = rs.stationID
-            #                 WHERE tr.trainRouteID = {i}
-            #                 ORDER BY occurrenceDate , Tid ASC;"""
-
-            # #Execute the SQL query to create the timetable table
-            # self.con.execute(query)
-            
-          
-
-            # query = "ALTER TABLE TIMETABLE_{} ADD DateTime datetime;".format(i)
-            # self.con.execute(query)
-            # self.con.commit()
-
-            # update_query = "UPDATE TIMETABLE_{} SET DateTime = strftime('%Y-%m-%d %H:%M:%S', occurrenceDate || ' ' || Tid);".format(i)
-            # self.con.execute(update_query)
-            # self.con.commit()
-
-            #next_data = data + timedelta(day=1)  # add 1 minute to the datetime object to get the next data
-            # Define the SQL query to select the station names, departure time, and occurrence date for the given train route ID
-            
-  
+        for i in range(1, 4):
             
             for departure_datetime in departure_datetime_next:
 
-    
                 query = f"""
             SELECT occurrenceDate,Tid
             FROM TIMETABLE_{i} 
             WHERE DateTime BETWEEN (
                 SELECT DateTime
                 FROM TIMETABLE_{i} 
-                WHERE stationName = '{start_station}'  
+                WHERE stationName = '{startStation}'  
                 AND DateTime >='{departure_datetime}' 
             ) AND (
                 SELECT DateTime
                 FROM TIMETABLE_{i} 
-                WHERE stationName = '{end_station}'
+                WHERE stationName = '{endStation}'
                 AND DateTime >='{departure_datetime}' 
-            ) AND stationName = '{start_station}'"""
+            ) AND stationName = '{startStation}'"""
                 result = self.con.execute(query)
                 #result.append (self.con.execute(query))
                 for row in result:
@@ -363,7 +321,7 @@ class Session:
 
 def main():
 
-    user_session = Session('tester.db')
+    user_session = Session('railwaydatabase.db')
     user_session.run()
 
 if __name__ == '__main__':
