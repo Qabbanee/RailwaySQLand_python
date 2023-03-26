@@ -1,4 +1,5 @@
 import sqlite3
+import pytz
 import numpy as np # For array management
 from datetime import datetime, timedelta
 #import datetime # To generate timestamp
@@ -77,6 +78,12 @@ class Session:
         start_station = input("Enter the name of the starting station: ")
         end_station = input("Enter the name of the ending station: ")
         departure_datetime= input("Enter the date and time (YYYY-MM-DD HH:MM): ")
+
+
+
+
+
+
         departure_datetime = datetime.strptime(departure_datetime, "%Y-%m-%d %H:%M")
         # departure_time = input("Enter the time( HH:MM): ")
         # query = f"SELECT * FROM route_stops WHERE stop_name = '{start_station}'"
@@ -122,7 +129,7 @@ class Session:
 
             #next_data = data + timedelta(day=1)  # add 1 minute to the datetime object to get the next data
             # Define the SQL query to select the station names, departure time, and occurrence date for the given train route ID
-            result=[]
+            
   
             
             for departure_datetime in departure_datetime_next:
@@ -151,6 +158,7 @@ class Session:
                     else:
                         print("No results found.")
 
+
                 
             
 
@@ -160,13 +168,13 @@ class Session:
 
             # Print the results
             # Print the results if there are any
-            for row in result:
-                if row is not None:
-                    print(f"Train Route ID {i}:")   
-                    print(row)
-                else:
-                    print("No results found.")
-
+            # for row in result:
+            #     if row is not None:
+            #         print(f"Train Route ID {i}:")   
+            #         print(row)
+            #     else:
+            #         print("No results found.")
+            
 
     def register_customer(self):
         customerName = input("Enter your name: ")
@@ -199,42 +207,136 @@ class Session:
         print("Purchase data entered successfully.")
 
     def find_and_purchase_tickets(self):
-        name= input("Enter your name: ")
-        email = ""
-        while not check_email(email):
-            email = input("Enter email address: ")
-            if not check_email(email):
-                print("Invalid email address. Please try again.")
-        #query=f"SELECT ID FROM Customers WHERE ID = {email} "
-        result = self.con.execute("SELECT COUNT(*) FROM Customers WHERE email=?",(email,))
+        # name= input("Enter your name: ")
+        # email = ""
+        # while not check_email(email):
+        #     email = input("Enter email address: ")
+        #     if not check_email(email):
+        #         print("Invalid email address. Please try again.")
+        # #query=f"SELECT ID FROM Customers WHERE ID = {email} "
+        # result = self.con.execute("SELECT COUNT(*) FROM Customers WHERE email=?",(email,))
 
-        for row in result:
-
-            if not row[0]:
-                print("Email address not found in database, Register first!")
-                return 0
-            
-        # Close the database connection
+        # for row in result:
+        #     if not row[0]:
+        #         print("Email address not found in database, Register first!")
+        #         return 0
         
-
+        # # Close the database connection
+        
+        # result_id = []
         start_station = input("Enter the name of the starting station: ")
+        
         end_station = input("Enter the name of the ending station: ")
-        departure_date = input("Enter the departure date (YYYY-MM-DD): ")
-        query = f"SELECT * FROM route_stops WHERE stop_name = '{start_station}'"
-        result = self.con.execute(query)
-        routes = []
+        departure_datetime = input("Enter the departure date (YYYY-MM-DD HH:MM): ")
+
+        # for i in range(2, 4):
+        #     query = f"""
+        #         SELECT trainRouteID,occurrenceDate,Tid
+        #         FROM TIMETABLE_{i} 
+        #         WHERE DateTime BETWEEN (
+        #             SELECT DateTime
+        #             FROM TIMETABLE_{i} 
+        #             WHERE stationName = '{start_station}'  
+        #             AND DateTime >='{departure_datetime}' 
+        #         ) AND (
+        #             SELECT DateTime
+        #             FROM TIMETABLE_{i} 
+        #             WHERE stationName = '{end_station}'
+        #             AND DateTime >='{departure_datetime}' 
+        #         ) AND stationName = '{start_station}'"""
+        
+        # # calling the fuction to get id
+        
+        #     result = self.con.execute(query)
+
+        #     routes = []
+        #     for row in result:
+        #     #route_id = row
+
+        #         print("just testing if this could work" , row)
+        #     query= f""" SELECT occurenceID FROM OCCURENCE_TABLE where 
+        #     """
+        customerID=1
+        occurrenceID=3
+
+        # set the timezone to your local timezone
+        tz = pytz.timezone('Europe/Oslo')
+
+        # get the current date and time with the correct timezone
+        current_datetime = datetime.now(tz)
+
+        orderDate = current_datetime.strftime("%Y-%m-%d %H:%M")   
+       
+
+        numChairTickets = input("How many chair tickets? ")
+        numBedTickets= input("How many bed tickets? ")
+        query= "INSERT INTO CustomerOrders(customerID,occurrenceID,orderDate,numChairTickets,numBedTickets) VALUES (?, ?, ?,?,?)"
+        values = (customerID, occurrenceID, orderDate,numChairTickets,numBedTickets)
+        self.con.execute(query, values)
+        self.con.commit()
+
+        
+        query=f"SELECT orderID FROM CustomerOrders WHERE customerID='{customerID}'AND occurrenceID='{occurrenceID}'AND orderDate='{orderDate}'"
+        result=self.con.execute(query)
         for row in result:
-            route_id = row[0]
-            query = f"SELECT * FROM route_stops WHERE route_id = {route_id} AND stop_name = '{end_station}'"
-            end_station_result = self.db.execute(query)
-            if end_station_result:
-                query = f"SELECT * FROM purchases WHERE route_id = {route_id} AND departure_date = '{departure_date}'"
-                purchase_result = self.db.execute(query)
-                num_tickets_purchased = 0
-                for purchase_row in purchase_result:
-                    num_tickets_purchased += purchase_row[4]
-                if num_tickets_purchased < row[6]:
-                    routes.append((route_id, row[3]))
+            orderID=row
+        
+        added = False
+        for ticket in range(1, int(numChairTickets) + 1):
+            for i in range(1, 13):
+                seatID = i
+                query = "INSERT INTO ChairTickets (occurrenceID, orderID, seatID, startStationId, endStationId) VALUES (?, ?, ?, ?, ?)"
+                values=(occurrenceID, orderID, seatID, startStationId, endStationId)
+                self.con.execute(query, values)
+                if self.con.total_changes > 0:
+                    # If a seat ID has been added, set added to True and break out of the loop
+                    added = True
+                    break
+            if added:
+                # If a seat ID has been added, return the seat ID and break out of the outer loop
+                return seatID
+        if not added:
+            # If the loop has finished without adding a seat ID, raise an exception or handle the error
+            raise Exception("No available seat IDs")
+
+
+
+
+
+        added = False
+        for ticket in range(1, int(numBedTickets) + 1):
+            for i in range(1, 13):
+                bedID = i
+                query = f"INSERT INTO BedTickets (occurrenceID, orderID, bedID, startStationId, endStationId) VALUES (?, ?, ?, ?, ?)"
+                values=(occurrenceID, orderID, seatID, startStationId, endStationId)
+                self.con.execute(query, values)
+                if self.con.total_changes > 0:
+                    # If a bed ID has been added, set added to True and break out of the loop
+                    added = True
+                    break
+            if added:
+                # If a bed ID has been added, return the bed ID and break out of the outer loop
+                return bedID
+        if not added:
+            # If the loop has finished without adding a bed ID, raise an exception or handle the error
+            raise Exception("No available bed IDs")
+
+            
+
+
+
+
+
+            # query = f"SELECT * FROM route_stops WHERE route_id = {route_id} AND stop_name = '{end_station}'"
+            # end_station_result = self.db.execute(query)
+            # if end_station_result:
+            #     query = f"SELECT * FROM purchases WHERE route_id = {route_id} AND departure_date = '{departure_date}'"
+            #     purchase_result = self.db.execute(query)
+            #     num_tickets_purchased = 0
+            #     for purchase_row in purchase_result:
+            #         num_tickets_purchased += purchase_row[4]
+            #     if num_tickets_purchased < row[6]:
+            #         routes.append((route_id, row[3]))
         if not routes:
             print("No available tickets for this route on this date.")
         else:
